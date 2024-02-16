@@ -12,6 +12,20 @@ describe('Express.js Server Tests', () => {
         .its('status')
         .should('equal', 200);
     });
+
+
+    // Test GET request to retrieve a single book by its ID
+it('Gets a single book by ID', () => {
+    // Replace 'bookId' with the actual ID of the book you want to retrieve
+    const bookId = 'rdd43d450a71074'; // Example book ID
+    
+    cy.request(`http://localhost:8090/api/collections/books/records/${bookId}`)
+      .then((response) => {
+        expect(response.status).to.eq(200);
+        // Assert on the response body as needed
+      });
+  });
+  
   
     // Test POST request to add a new book
     it('Adds a new book', () => {
