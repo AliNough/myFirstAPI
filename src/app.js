@@ -1,18 +1,11 @@
+import PocketBase from "pocketbase";
+import express from "express";
+import morgan from "morgan";
+import helmet from "helmet";
+import cors from "cors";
 
-const express = require("express");
-const morgan = require("morgan");
-const helmet = require("helmet");
-const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
-const { resolve } = require("path");
-
-require("dotenv").config();
-
-const middlewares = require("./middlewares");
-
-const db = new sqlite3.Database(
-  resolve(__dirname, "../bin/pb/pb_data/data.db")
-);
+// Create a new PocketBase instance with the provided database URL
+const db = new PocketBase("http://localhost:8090/api/collections/books/records");
 
 const app = express();
 
@@ -27,87 +20,70 @@ app.get("/", (req, res) => {
   });
 });
 
+// Endpoint to get all books
 app.get("/books", (req, res) => {
-  // NOTE: We need to get the ID from the query string in the request object
-  const { id } = req.query;
-
-  if (id) {
-    db.get("SELECT * FROM books WHERE id = ?", [id], (err, rows) => {
-      if (err) {
-        console.log("Error running sql: " + err);
-
-        res.status(500);
-        res.json({
-          message: "Internal Server Error",
-        });
-      }
-
-      res.json({
-        message: "list of products",
-        data: rows,
-      });
-    });
-
-    return;
-  }
-
-  // We need to run a sql query against our pocketbase DB to get all the products
-  db.all("SELECT * FROM books", (err, rows) => {
+  // Use PocketBase to execute SQL query to get all books
+  db.query("SELECT * FROM books", (err, rows) => {
     if (err) {
-      console.log("Error running sql: " + err);
+      console.log("Error running SQL query: " + err);
 
       res.status(500);
       res.json({
         message: "Internal Server Error",
       });
+    } else {
+      res.json({
+        message: "All books",
+        data: rows,
+      });
     }
-
-    res.json({
-      message: "all books",
-      data: rows,
-    });
   });
 });
 
+// Endpoint to add a new book
 app.post("/books", (req, res) => {
   const { title, author, year } = req.body;
 
-  db.run(
-    "INSERT INTO books (title, author, year) VALUES (?, ?, ?)",
-    [title, author, year],
-    function cb(err) {
-      if (err) {
-        console.log(`Error running sql: ${err}`);
-
-        res.status(500);
-        res.json({
-          message: "Internal Server Error",
-        });
-      }
-
-      res.json({
-        message: `book ${this.lastID} added`,
-      });
-    }
-  );
-});
-
-app.delete("/books", (req, res) => {
-  const { id } = req.query;
-
-  db.run("DELETE FROM books WHERE id = ?", [id], (err) => {
+  // Use PocketBase to execute SQL query to insert a new book
+  db.query("INSERT INTO books (title, author, year) VALUES (?, ?, ?)", [title, author, year], (err, result) => {
     if (err) {
-      console.log(`Error running sql: ${err}`);
+      console.log("Error running SQL query: " + err);
 
       res.status(500);
       res.json({
         message: "Internal Server Error",
       });
+    } else {
+      res.json({
+        message: `Book added with ID ${result.insertId}`,
+      });
     }
-
-    res.json({
-      message: `book ${id} deleted`,
-    });
   });
 });
 
+// Endpoint to delete a book
+app.delete("/books/:id", (req, res) => {
+  const { id } = req.params;
+
+  // Use PocketBase to execute SQL query to delete a book by ID
+  db.query("DELETE FROM books WHERE id = ?", [id], (err, result) => {
+    if (err) {
+      console.log("Error running SQL query: " + err);
+
+      res.status(500);
+      res.json({
+        message: "Internal Server Error",
+      });
+    } else {
+      res.json({
+        message: `Book with ID ${id} deleted`,
+      });
+    }
+  });
+});
+
+// Start the server
+const PORT = process.env.PORT || 8090;
+app.listen(PORT, () => {
+  console.log(`Server started at http://localhost:${PORT}`);
+});
